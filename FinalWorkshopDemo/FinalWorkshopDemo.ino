@@ -44,13 +44,25 @@ const byte rotateArray[] ={ 0b10000,
 // The number of steps
 const int numberOfSteps = 10;
 
+// Loop Delay
+const int delayTime = 10;
+
 // The minimum amount of time between chase steps
-const int minDelay = 100;
+const int minDelay = 10;
 // The maximum amount of time between chase steps
-const int maxDelay = 500;
+const int maxDelay = 50;
+
+// Set a delay for checking the state of the button
+const int bounceDelay = 100;
 
 // The current step in the led chase pattern
 int currentStep = 0;
+
+// Counter for managing the loop delay on LEDupdate
+int countUpdate = 0;
+
+// Counter for managing the Bounce delay
+int countBounce = 0;
 
 // The available chase types
 enum chaseTypes { cylon, trek, rotate };
@@ -80,21 +92,33 @@ void setup() {
 void loop() {
   int potValue = analogRead(POT);
 
-  int delayTime = updateDelayTime(potValue);
-  
-  updateLEDOutput();
-  updateRGB(potValue);
 
-  if(wasButtonPressed)
+  int delayFactor = updateDelayTime(potValue);
+  updateRGB(potValue);
+  
+  if(countBounce >= bounceDelay)
   {
-    updateChaseType();
-    wasButtonPressed = false;
+    if(wasButtonPressed )
+    {
+      updateChaseType();
+      Serial.println("pressed!");
+      wasButtonPressed = false;
+    }
+    countBounce = 0;
   }
 
   // Go to the next step, but wrap back to zero
   //   if we pass the last step
-  currentStep = (currentStep + 1) % numberOfSteps;
+
   
+  if (countUpdate >= delayFactor)
+  {
+    updateLEDOutput();
+    currentStep = (currentStep + 1) % numberOfSteps;
+    countUpdate = 0;
+  }
+  countUpdate++;
+  countBounce++;
   delay(delayTime);
 }
 
@@ -150,7 +174,7 @@ void updateRGB(int potValue)
 {
   // Map potValue to analogWrite value
   float multiplier = 255.0 / 1023.0;
-  int brightness = (int)(potValue * multiplier);
+  int brightness = 255 - (int)(potValue * multiplier);
   
   switch(currentChaseType)
   {
@@ -159,10 +183,10 @@ void updateRGB(int potValue)
       analogWrite(LED_G, 0);
       analogWrite(LED_B, 0);
       break;
-    case trek: // trek is blue
+    case trek: // trek is green
       analogWrite(LED_R, 0);
-      analogWrite(LED_G, 0);
-      analogWrite(LED_B, brightness);
+      analogWrite(LED_G, brightness);
+      analogWrite(LED_B, 0);
       break;
     case rotate: // rotate is purple
       analogWrite(LED_R, brightness);
@@ -203,6 +227,6 @@ void updateChaseType()
 void buttonInterruptHandler()
 {
   wasButtonPressed = true;
-  Serial.println("pressed!");
+  
 }
 
